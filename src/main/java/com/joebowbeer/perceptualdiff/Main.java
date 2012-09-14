@@ -36,12 +36,12 @@ import org.apache.commons.cli.ParseException;
 public class Main {
 
     private static String VERSION_STRING =
-            Main.class.getPackage().getSpecificationTitle() + " " +
-            Main.class.getPackage().getSpecificationVersion();
+            Main.class.getPackage().getSpecificationTitle() + " "
+            + Main.class.getPackage().getSpecificationVersion();
 
     /**
      * TODO.
-     * 
+     *
      * @param args command line options
      */
     public static void main(String[] args) throws IOException {
@@ -93,11 +93,11 @@ public class Main {
         try {
             CommandLine line = new GnuParser().parse(options, args);
 
-            float colorFactor = getFloatValue(line, "colorfactor", 1.0f);
+            double colorFactor = getDoubleValue(line, "colorfactor", 1.0);
             int downSample = getIntValue(line, "downsample", 0);
-            float fieldOfView = getFloatValue(line, "fov", 45.0f);
-            float gamma = getFloatValue(line, "gamma", 2.2f);
-            float luminance = getFloatValue(line, "luminance", 100.0f);
+            double fieldOfView = getDoubleValue(line, "fov", 45.0);
+            double gamma = getDoubleValue(line, "gamma", 2.2);
+            double luminance = getDoubleValue(line, "luminance", 100.0);
             boolean luminanceOnly = line.hasOption("luminanceonly");
             String output = line.getOptionValue("output", null);
             int thresholdPixels = getIntValue(line, "threshold", 100);
@@ -108,7 +108,7 @@ public class Main {
                 Log.v(String.format("Field of view is %s degrees", fieldOfView));
                 Log.v(String.format("Threshold is %d pixels", thresholdPixels));
                 Log.v(String.format("Gamma is %s", gamma));
-                Log.v(String.format("The display's luminance is %s candelas per meter squared",
+                Log.v(String.format("The display's Luminance is %s candelas per meter squared",
                         luminance));
             }
 
@@ -120,9 +120,12 @@ public class Main {
             BufferedImage imgB = ImageIO.read(ImageIO.createImageInputStream(new File(names[1])));
             // TODO: downSample imgA and imgB
             BufferedImage imgDiff = null; // TODO
-            PerceptualDiff pd = new PerceptualDiff(imgA, imgB, colorFactor, fieldOfView, gamma,
-                    luminance, luminanceOnly, thresholdPixels);
-            // TODO!
+            PerceptualDiff pd = new PerceptualDiff(colorFactor, fieldOfView, gamma, luminance,
+                    luminanceOnly, thresholdPixels);
+            boolean passed = pd.compare(imgA, imgB);
+            Log.i(passed ? "PASS" : "FAIL");
+            System.exit(passed ? 0 : 1);
+
         } catch (ParseException ex) {
             Log.i(VERSION_STRING);
             Log.e("Command parsing failed: " + ex.getMessage());
@@ -134,14 +137,14 @@ public class Main {
                     + "\nOptions:", options,
                     "\nNote: Input or Output files can also be in the PNG or JPG format"
                     + " or any format that ImageIO supports.");
-            System.exit(1);
+            System.exit(2);
         }
     }
 
-    private static float getFloatValue(CommandLine line, String opt, float defValue)
+    private static double getDoubleValue(CommandLine line, String opt, double defValue)
             throws ParseException {
         return line.hasOption(opt)
-                ? ((Number) line.getParsedOptionValue(opt)).floatValue() : defValue;
+                ? ((Number) line.getParsedOptionValue(opt)).doubleValue() : defValue;
     }
 
     private static int getIntValue(CommandLine line, String opt, int defValue)
