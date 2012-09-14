@@ -66,7 +66,7 @@ public class LaplacianPyramid {
                         if (ny >= height) {
                             ny = 2 * height - ny - 1;
                         }
-                        a[index] += kernel[i + 2] * kernel[j + 2] * b[ny * width + nx];
+                        a[index] += kernel[i + 2] * kernel[j + 2] * b[nx + ny * width];
                     }
                 }
             }
@@ -74,7 +74,6 @@ public class LaplacianPyramid {
     }
 
     public float getValue(int x, int y, int level) {
-        int index = x + y * width;
-        return levels[level][index];
+        return levels[level][x + y * width];
     }
 }
