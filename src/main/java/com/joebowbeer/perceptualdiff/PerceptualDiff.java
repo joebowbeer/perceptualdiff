@@ -58,7 +58,7 @@ public class PerceptualDiff {
      * References: A Perceptual Metric for Production Testing, Hector Yee, Journal of Graphics Tools
      * 2004.
      */
-    public boolean compare(BufferedImage imgA, BufferedImage imgB) {
+    public boolean compare(BufferedImage imgA, BufferedImage imgB, boolean failFast) {
 
         int w = imgA.getWidth();
         int h = imgA.getHeight();
@@ -191,12 +191,15 @@ public class PerceptualDiff {
             }
             if (!pass) {
                 pixelsFailed++;
-//                if (args.ImgDiff) {
-//                    args.ImgDiff - > Set(255, 0, 0, 255, index);
+//                if (imgDiff != null) {
+//                    imgDiff.set(255, 0, 0, 255, index);
 //                }
+                if (failFast && pixelsFailed >= thresholdPixels) {
+                    break;
+                }
             } else {
-//                if (args.ImgDiff) {
-//                    args.ImgDiff - > Set(0, 0, 0, 255, index);
+//                if (imgDiff != null) {
+//                    imgDiff.set(0, 0, 0, 255, index);
 //                }
             }
         }
@@ -205,27 +208,27 @@ public class PerceptualDiff {
 //        sprintf(different, "%d pixels are different\n", pixels_failed);
 //
 //        // Always output image difference if requested.
-//        if (args.ImgDiff) {
-//            if (args.ImgDiff - > WriteToFile(args.ImgDiff - > Get_Name().c_str())) {
+//        if (imgDiff != null) {
+//            if (imgDiff.writeToFile(imgDiff.getName())) {
 //                args.ErrorStr += "Wrote difference image to ";
-//                args.ErrorStr += args.ImgDiff - > Get_Name();
+//                args.ErrorStr += imgDiff.getName();
 //                args.ErrorStr += "\n";
 //            } else {
 //                args.ErrorStr += "Could not write difference image to ";
-//                args.ErrorStr += args.ImgDiff - > Get_Name();
+//                args.ErrorStr += imgDiff.getName();
 //                args.ErrorStr += "\n";
 //            }
 //        }
 
-        if (pixelsFailed < thresholdPixels) {
-            Log.i("Images are perceptually indistinguishable");
+        if (pixelsFailed >= thresholdPixels) {
+            Log.i("Images are visibly different");
             Log.i(String.format("%d pixels are different", pixelsFailed));
-            return true;
+            return false;
         }
 
-        Log.i("Images are visibly different");
+        Log.i("Images are perceptually indistinguishable");
         Log.i(String.format("%d pixels are different", pixelsFailed));
-        return false;
+        return true;
     }
 
     private void convert(int[] rgb, float[] lum, float[] a, float[] b) {

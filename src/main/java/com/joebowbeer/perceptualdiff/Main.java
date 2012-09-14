@@ -61,6 +61,9 @@ public class Main {
                 .withDescription("#pixels p below which differences are ignored")
                 .create("threshold"));
         options.addOption(OptionBuilder
+                .withDescription("Fail immediately when threshold is reached")
+                .create("failfast"));
+        options.addOption(OptionBuilder
                 .withArgName("g")
                 .hasArgs(1).withType(Number.class)
                 .withDescription("Value to convert rgb into linear space (default 2.2)")
@@ -95,6 +98,7 @@ public class Main {
 
             double colorFactor = getDoubleValue(line, "colorfactor", 1.0);
             int downSample = getIntValue(line, "downsample", 0);
+            boolean failFast = line.hasOption("failfast");
             double fieldOfView = getDoubleValue(line, "fov", 45.0);
             double gamma = getDoubleValue(line, "gamma", 2.2);
             double luminance = getDoubleValue(line, "luminance", 100.0);
@@ -122,7 +126,7 @@ public class Main {
             BufferedImage imgDiff = null; // TODO
             PerceptualDiff pd = new PerceptualDiff(colorFactor, fieldOfView, gamma, luminance,
                     luminanceOnly, thresholdPixels);
-            boolean passed = pd.compare(imgA, imgB);
+            boolean passed = pd.compare(imgA, imgB, failFast);
             Log.i(passed ? "PASS" : "FAIL");
             System.exit(passed ? 0 : 1);
 
