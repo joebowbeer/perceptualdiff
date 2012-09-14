@@ -20,7 +20,6 @@ package com.joebowbeer.perceptualdiff;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 
-import static com.joebowbeer.perceptualdiff.LaplacianPyramid.MAX_PYR_LEVELS;
 import static java.lang.Math.PI;
 import static java.lang.Math.abs;
 import static java.lang.Math.exp;
@@ -33,6 +32,8 @@ import static java.lang.Math.tan;
  *
  */
 public class PerceptualDiff {
+
+    private static int MAX_PYR_LEVELS = 8;
 
     private final double colorFactor;
     private final double fieldOfView;
@@ -75,25 +76,28 @@ public class PerceptualDiff {
             return true;
         }
 
+        // assuming colorspaces are in Adobe RGB (1998) convert to XYZ
+
         int dim = aRGB.length;
 
-        // assuming colorspaces are in Adobe RGB (1998) convert to XYZ
-        float[] aLum = new float[dim];
-        float[] bLum = new float[dim];
         float[] aA = new float[dim];
         float[] bA = new float[dim];
         float[] aB = new float[dim];
         float[] bB = new float[dim];
 
-        Log.v("Converting RGB to XYZ");
+        // Successively blurred versions of the original image.
+        float[][] la = new float[MAX_PYR_LEVELS][dim];
+        float[][] lb = new float[MAX_PYR_LEVELS][dim];
 
-        convert(aRGB, aLum, aA, aB);
-        convert(bRGB, bLum, bA, bB);
+        Log.v("Converting RGB to XYZ and LAB");
+
+        convert(aRGB, la[0], aA, aB);
+        convert(bRGB, lb[0], bA, bB);
 
         Log.v("Constructing Laplacian Pyramids");
 
-        LaplacianPyramid la = new LaplacianPyramid(aLum, w, h);
-        LaplacianPyramid lb = new LaplacianPyramid(bLum, w, h);
+        construct(la, w, h);
+        construct(lb, w, h);
 
         double numOneDegreePixels = 2 * tan(fieldOfView * 0.5 * PI / 180) * 180 / PI;
         double pixelsPerDegree = w / numOneDegreePixels;
@@ -101,9 +105,9 @@ public class PerceptualDiff {
         Log.v("Performing test");
 
         double numPixels = 1;
-        int adaptationLevel = 0;
+        int adaptLevel = 0;
         for (int i = 0; i < MAX_PYR_LEVELS; i++) {
-            adaptationLevel = i;
+            adaptLevel = i;
             if (numPixels > numOneDegreePixels) {
                 break;
             }
@@ -122,97 +126,96 @@ public class PerceptualDiff {
             freq[i] = csfMax / csf(cpd[i], 100.0);
         }
 
+        float[] contrast = new float[MAX_PYR_LEVELS - 2];
+        double[] mask = new double[MAX_PYR_LEVELS - 2];
+
         int pixelsFailed = 0;
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int index = x + y * w;
-                float[] contrast = new float[MAX_PYR_LEVELS - 2];
-                float sumContrast = 0;
-                for (int i = 0; i < MAX_PYR_LEVELS - 2; i++) {
-                    float n1 = abs(la.getValue(x, y, i) - la.getValue(x, y, i + 1));
-                    float n2 = abs(lb.getValue(x, y, i) - lb.getValue(x, y, i + 1));
-                    float numerator = (n1 > n2) ? n1 : n2;
-                    float d1 = abs(la.getValue(x, y, i + 2));
-                    float d2 = abs(lb.getValue(x, y, i + 2));
-                    float denominator = (d1 > d2) ? d1 : d2;
-                    if (denominator < 1e-5f) {
-                        denominator = 1e-5f;
-                    }
-                    contrast[i] = numerator / denominator;
-                    sumContrast += contrast[i];
+        for (int index = 0; index < dim; index++) {
+            float sumContrast = 0;
+            for (int i = 0; i < MAX_PYR_LEVELS - 2; i++) {
+                float n1 = abs(la[i][index] - la[i + 1][index]);
+                float n2 = abs(lb[i][index] - lb[i + 1][index]);
+                float numerator = (n1 > n2) ? n1 : n2;
+                float d1 = abs(la[i + 2][index]);
+                float d2 = abs(lb[i + 2][index]);
+                float denominator = (d1 > d2) ? d1 : d2;
+                if (denominator < 1e-5f) {
+                    denominator = 1e-5f;
                 }
-                if (sumContrast < 1e-5) {
-                    sumContrast = 1e-5f;
+                contrast[i] = numerator / denominator;
+                sumContrast += contrast[i];
+            }
+            if (sumContrast < 1e-5) {
+                sumContrast = 1e-5f;
+            }
+
+            double adapt = 0.5 * (la[adaptLevel][index] + lb[adaptLevel][index]);
+            if (adapt < 1e-5) {
+                adapt = 1e-5f;
+            }
+            for (int i = 0; i < MAX_PYR_LEVELS - 2; i++) {
+                mask[i] = mask(contrast[i] * csf(cpd[i], adapt));
+            }
+            double factor = 0;
+            for (int i = 0; i < MAX_PYR_LEVELS - 2; i++) {
+                factor += contrast[i] * freq[i] * mask[i] / sumContrast;
+            }
+            if (factor < 1) {
+                factor = 1;
+            }
+            if (factor > 10) {
+                factor = 10;
+            }
+            double delta = abs(la[0][index] - lb[0][index]);
+
+            boolean pass = true;
+            // pure luminance test
+            if (delta > factor * tvi(adapt)) {
+                pass = false;
+            } else if (!luminanceOnly) {
+                // CIE delta E test with modifications
+                double colorScale = colorFactor;
+                // ramp down the color test in scotopic regions
+                if (adapt < 10.0) {
+                    // Don't do color test at all.
+                    colorScale = 0.0;
                 }
-                double[] mask = new double[MAX_PYR_LEVELS - 2];
-                double adapt = la.getValue(x, y, adaptationLevel) + lb.getValue(x, y, adaptationLevel);
-                adapt *= 0.5f;
-                if (adapt < 1e-5) {
-                    adapt = 1e-5f;
-                }
-                for (int i = 0; i < MAX_PYR_LEVELS - 2; i++) {
-                    mask[i] = mask(contrast[i] * csf(cpd[i], adapt));
-                }
-                double factor = 0;
-                for (int i = 0; i < MAX_PYR_LEVELS - 2; i++) {
-                    factor += contrast[i] * freq[i] * mask[i] / sumContrast;
-                }
-                if (factor < 1) {
-                    factor = 1;
-                }
-                if (factor > 10) {
-                    factor = 10;
-                }
-                double delta = abs(la.getValue(x, y, 0) - lb.getValue(x, y, 0));
-                boolean pass = true;
-                // pure luminance test
-                if (delta > factor * tvi(adapt)) {
+                float da = aA[index] - bA[index];
+                float db = aB[index] - bB[index];
+                da = da * da;
+                db = db * db;
+                double deltaE = (da + db) * colorScale;
+                if (deltaE > factor) {
                     pass = false;
-                } else if (!luminanceOnly) {
-                    // CIE delta E test with modifications
-                    double colorScale = colorFactor;
-                    // ramp down the color test in scotopic regions
-                    if (adapt < 10.0f) {
-                        // Don't do color test at all.
-                        colorScale = 0.0f;
-                    }
-                    float da = aA[index] - bA[index];
-                    float db = aB[index] - bB[index];
-                    da = da * da;
-                    db = db * db;
-                    double deltaE = (da + db) * colorScale;
-                    if (deltaE > factor) {
-                        pass = false;
-                    }
                 }
-                if (!pass) {
-                    pixelsFailed++;
-//			if (args.ImgDiff) {
-//				args.ImgDiff->Set(255, 0, 0, 255, index);
-//			}
-                } else {
-//			if (args.ImgDiff) {
-//				args.ImgDiff->Set(0, 0, 0, 255, index);
-//			}
-                }
+            }
+            if (!pass) {
+                pixelsFailed++;
+//                if (args.ImgDiff) {
+//                    args.ImgDiff - > Set(255, 0, 0, 255, index);
+//                }
+            } else {
+//                if (args.ImgDiff) {
+//                    args.ImgDiff - > Set(0, 0, 0, 255, index);
+//                }
             }
         }
 
-//	char different[100];
-//	sprintf(different, "%d pixels are different\n", pixels_failed);
+//        char different[100];
+//        sprintf(different, "%d pixels are different\n", pixels_failed);
 //
 //        // Always output image difference if requested.
-//	if (args.ImgDiff) {
-//		if (args.ImgDiff->WriteToFile(args.ImgDiff->Get_Name().c_str())) {
-//			args.ErrorStr += "Wrote difference image to ";
-//			args.ErrorStr+= args.ImgDiff->Get_Name();
-//			args.ErrorStr += "\n";
-//		} else {
-//			args.ErrorStr += "Could not write difference image to ";
-//			args.ErrorStr+= args.ImgDiff->Get_Name();
-//			args.ErrorStr += "\n";
-//		}
-//	}
+//        if (args.ImgDiff) {
+//            if (args.ImgDiff - > WriteToFile(args.ImgDiff - > Get_Name().c_str())) {
+//                args.ErrorStr += "Wrote difference image to ";
+//                args.ErrorStr += args.ImgDiff - > Get_Name();
+//                args.ErrorStr += "\n";
+//            } else {
+//                args.ErrorStr += "Could not write difference image to ";
+//                args.ErrorStr += args.ImgDiff - > Get_Name();
+//                args.ErrorStr += "\n";
+//            }
+//        }
 
         if (pixelsFailed < thresholdPixels) {
             Log.i("Images are perceptually indistinguishable");
@@ -228,9 +231,9 @@ public class PerceptualDiff {
     private void convert(int[] rgb, float[] lum, float[] a, float[] b) {
         for (int index = 0, length = rgb.length; index < length; index++) {
             int color = rgb[index];
-            double red = pow(red(color), gamma);
-            double grn = pow(green(color), gamma);
-            double blu = pow(blue(color), gamma);
+            double red = pow(((color >> 16) & 0xff) / 255.0, gamma);
+            double grn = pow(((color >> 8) & 0xff) / 255.0, gamma);
+            double blu = pow((color & 0xff) / 255.0, gamma);
 
             /*
              * Convert from Adobe RGB (1998) with reference white D65 to XYZ.
@@ -272,17 +275,48 @@ public class PerceptualDiff {
     private static final double epsilon = 216.0 / 24389.0;
     private static final double kappa = 24389.0 / 27.0;
 
-    private static double red(int color) {
-        return ((color >> 16) & 0xff) / 255.0;
+    /**
+     * Constructs the Laplacian pyramid by successively copying earlier levels and blurring them.
+     */
+    private static void construct(float[][] levels, int width, int height) {
+        for (int i = 1, n = levels.length; i < n; i++) {
+            convolve(levels[i], levels[i - 1], width, height);
+        }
     }
 
-    private static double green(int color) {
-        return ((color >> 8) & 0xff) / 255.0;
+    /**
+     * Convolves image b with the filter kernel and stores it in a.
+     */
+    private static void convolve(float[] a, float[] b, int width, int height) {
+        for (int index = 0, y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++, index++) {
+                for (int i = -2; i <= 2; i++) {
+                    for (int j = -2; j <= 2; j++) {
+                        int nx = x + i;
+                        int ny = y + j;
+                        if (nx < 0) {
+                            nx = -nx;
+                        }
+                        if (ny < 0) {
+                            ny = -ny;
+                        }
+                        if (nx >= width) {
+                            nx = 2 * width - nx - 1;
+                        }
+                        if (ny >= height) {
+                            ny = 2 * height - ny - 1;
+                        }
+                        a[index] += kernel[i + 2] * kernel[j + 2] * b[nx + ny * width];
+                    }
+                }
+            }
+        }
     }
 
-    private static double blue(int color) {
-        return (color & 0xff) / 255.0;
-    }
+    /**
+     * Filter kernel for Laplacian convolution.
+     */
+    private static final float[] kernel = {0.05f, 0.25f, 0.4f, 0.25f, 0.05f};
 
     /**
      * Given the adaptation luminance, computes the threshold of visibility in cd per m^2.
