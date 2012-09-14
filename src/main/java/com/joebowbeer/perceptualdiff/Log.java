@@ -4,7 +4,7 @@ import java.io.PrintStream;
 
 public class Log {
 
-    public static final String TAG = "";
+    public static final String TAG = null;
 
     private static volatile Level LEVEL = Level.INFO;
 
@@ -47,7 +47,11 @@ public class Log {
 
     private static void println(Level level, Object obj) {
         if (isLoggable(level)) {
-            log.println(TAG + ' ' + obj);
+            if (TAG != null) {
+                log.print(TAG);
+                log.print(' ');
+            }
+            log.println(obj);
         }
     }
 }
