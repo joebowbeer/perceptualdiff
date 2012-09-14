@@ -17,6 +17,8 @@
  */
 package com.joebowbeer.perceptualdiff;
 
+import java.awt.geom.AffineTransform;
+import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -74,7 +76,7 @@ public class Main {
                 .withDescription("White luminance (default 100.0 cdm^-2)")
                 .create("luminance"));
         options.addOption(OptionBuilder
-                .withDescription("Only consider luminance; ignore chroma (color) in the comparison")
+                .withDescription("Only consider luminance; ignore chroma (color) in comparison")
                 .create("luminanceonly"));
         options.addOption(OptionBuilder
                 .withArgName("f")
@@ -89,7 +91,7 @@ public class Main {
         options.addOption(OptionBuilder
                 .withArgName("o")
                 .hasArgs(1)
-                .withDescription("Write difference to the file o.ppm")
+                .withDescription("Write difference to the file o.png")
                 .create("output"));
 
         // parse the command line arguments
@@ -116,17 +118,40 @@ public class Main {
                         luminance));
             }
 
-            String[] names = line.getArgs();
-            if (names.length != 2) {
+            String[] inputs = line.getArgs();
+            if (inputs.length < 2) {
                 throw new ParseException("Not enough image files specified");
             }
-            BufferedImage imgA = ImageIO.read(ImageIO.createImageInputStream(new File(names[0])));
-            BufferedImage imgB = ImageIO.read(ImageIO.createImageInputStream(new File(names[1])));
-            // TODO: downSample imgA and imgB
-            BufferedImage imgDiff = null; // TODO
-            PerceptualDiff pd = new PerceptualDiff(colorFactor, fieldOfView, gamma, luminance,
-                    luminanceOnly, thresholdPixels);
-            boolean passed = pd.compare(imgA, imgB, failFast);
+            BufferedImage imgA = ImageIO.read(new File(inputs[0]));
+            BufferedImage imgB = ImageIO.read(new File(inputs[1]));
+
+            if (downSample != 0) {
+                double scale = 1.0 / (1 << downSample);
+                Log.v(String.format("Scaling by %s", scale));
+                imgA = resize(imgA, scale);
+                imgB = resize(imgB, scale);
+            }
+
+            BufferedImage imgDiff;
+            if (output != null) {
+                imgDiff = new BufferedImage(imgA.getWidth(), imgA.getHeight(),
+                        BufferedImage.TYPE_INT_ARGB);
+            } else {
+                imgDiff = null;
+            }
+
+            boolean passed = new PerceptualDiff(colorFactor, fieldOfView, gamma, luminance,
+                    luminanceOnly, thresholdPixels, failFast).compare(imgA, imgB, imgDiff);
+
+            // Always output image difference if requested.
+            if (imgDiff != null) {
+                Log.i("Writing difference image to " + output);
+                int extIndex = output.lastIndexOf('.');
+                String formatName = (extIndex != -1)
+                        ? output.substring(extIndex + 1) : "png"; // TODO?
+                ImageIO.write(imgDiff, formatName, new File(output));
+            }
+
             Log.i(passed ? "PASS" : "FAIL");
             System.exit(passed ? 0 : 1);
 
@@ -136,11 +161,10 @@ public class Main {
             HelpFormatter formatter = new HelpFormatter();
             formatter.setWidth(80);
             formatter.printHelp(
-                    "java -jar perceptualdiff.jar image1.tif image2.tif [options]",
-                    "\n\nCompares image1.tif and image2.tif using a perceptually based image metric."
+                    "java -jar perceptualdiff.jar image1.png image2.png [options]",
+                    "\n\nCompares image1.png and image2.png using a perceptually based image metric."
                     + "\nOptions:", options,
-                    "\nNote: Input or Output files can also be in the PNG or JPG format"
-                    + " or any format that ImageIO supports.");
+                    "\nNote: Input or Output files can be in any format that ImageIO supports.");
             System.exit(2);
         }
     }
@@ -155,5 +179,12 @@ public class Main {
             throws ParseException {
         return line.hasOption(opt)
                 ? ((Number) line.getParsedOptionValue(opt)).intValue() : defValue;
+    }
+
+    private static BufferedImage resize(BufferedImage src, double scale) {
+        AffineTransform at = new AffineTransform();
+        at.scale(scale, scale);
+        AffineTransformOp scaleOp = new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
+        return scaleOp.filter(src, null);            
     }
 }

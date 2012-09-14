@@ -1,10 +1,14 @@
 package com.joebowbeer.perceptualdiff;
 
+import java.io.PrintStream;
+
 public class Log {
 
-    public static final String TAG = ">>";
+    public static final String TAG = "";
 
-    private static volatile Level LEVEL = Level.DEBUG;
+    private static volatile Level LEVEL = Level.INFO;
+
+    private static final PrintStream log = System.out;
 
     public enum Level {
         VERBOSE, DEBUG, INFO, WARN, ERROR
@@ -43,7 +47,7 @@ public class Log {
 
     private static void println(Level level, Object obj) {
         if (isLoggable(level)) {
-            System.err.println(TAG + ' ' + obj);
+            log.println(TAG + ' ' + obj);
         }
     }
 }
