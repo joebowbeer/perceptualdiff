@@ -61,7 +61,7 @@ public class Main {
                 .withDescription("#pixels p below which differences are ignored")
                 .create("threshold"));
         options.addOption(OptionBuilder
-                .withDescription("Fail immediately when threshold is reached")
+                .withDescription("Fail immediately if threshold is reached")
                 .create("failfast"));
         options.addOption(OptionBuilder
                 .withArgName("g")
