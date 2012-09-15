@@ -100,7 +100,7 @@ public class Main {
                 .withDescription("How many powers of two to down sample the image.")
                 .create(DOWNSAMPLE));
         options.addOption(OptionBuilder
-                .withArgName("o")
+                .withArgName("o.png")
                 .hasArgs(1)
                 .withDescription("Write difference to the file o.png")
                 .create(OUTPUT));
@@ -143,6 +143,8 @@ public class Main {
             String[] inputs = line.getArgs();
             if (inputs.length < 2) {
                 throw new ParseException("Not enough image files specified");
+            } else if (inputs.length > 2) {
+                throw new ParseException("Too many image files specified");
             }
             BufferedImage imgA = ImageIO.read(new File(inputs[0]));
             BufferedImage imgB = ImageIO.read(new File(inputs[1]));
