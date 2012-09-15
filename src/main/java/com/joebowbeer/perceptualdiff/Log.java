@@ -8,7 +8,7 @@ public class Log {
 
     private static volatile Level LEVEL = Level.INFO;
 
-    private static final PrintStream log = System.out;
+    private static final PrintStream log = System.err;
 
     public enum Level {
         VERBOSE, DEBUG, INFO, WARN, ERROR

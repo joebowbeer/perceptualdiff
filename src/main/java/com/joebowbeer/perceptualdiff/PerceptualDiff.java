@@ -43,8 +43,73 @@ public class PerceptualDiff {
     private final int thresholdPixels;
     private final boolean failFast;
 
-    public PerceptualDiff(double colorFactor, double fieldOfView, double gamma, double luminance,
-            boolean luminanceOnly, int thresholdPixels, boolean failFast) {
+    /**
+     * TODO.
+     */
+    public static class Builder {
+        
+        private double colorFactor = 1.0;
+        private boolean failFast = false;
+        private double fieldOfView = 45.0;
+        private double gamma = 2.2;
+        private double luminance = 100.0;
+        private boolean luminanceOnly = false;
+        private int thresholdPixels = 100;
+
+        public Builder setColorFactor(double colorFactor) {
+            this.colorFactor = colorFactor;
+            return this;
+        }
+
+        public Builder setFailFast(boolean failFast) {
+            this.failFast = failFast;
+            return this;
+        }
+
+        public Builder setFieldOfView(double fieldOfView) {
+            this.fieldOfView = fieldOfView;
+            return this;
+        }
+
+        public Builder setGamma(double gamma) {
+            this.gamma = gamma;
+            return this;
+        }
+
+        public Builder setLuminance(double luminance) {
+            this.luminance = luminance;
+            return this;
+        }
+
+        public Builder setLuminanceOnly(boolean luminanceOnly) {
+            this.luminanceOnly = luminanceOnly;
+            return this;
+        }
+
+        public Builder setThresholdPixels(int thresholdPixels) {
+            this.thresholdPixels = thresholdPixels;
+            return this;
+        }
+
+        public PerceptualDiff build() {
+            return new PerceptualDiff(fieldOfView, thresholdPixels, failFast, gamma, luminance,
+                    luminanceOnly, colorFactor);
+        }
+    }
+
+    /**
+     * TODO.
+     * 
+     * @param fieldOfView
+     * @param thresholdPixels
+     * @param failFast
+     * @param gamma
+     * @param luminance
+     * @param luminanceOnly
+     * @param colorFactor 
+     */
+    public PerceptualDiff(double fieldOfView, int thresholdPixels, boolean failFast, double gamma,
+            double luminance, boolean luminanceOnly, double colorFactor) {
         this.colorFactor = colorFactor;
         this.fieldOfView = fieldOfView;
         this.gamma = gamma;
@@ -52,6 +117,16 @@ public class PerceptualDiff {
         this.luminanceOnly = luminanceOnly;
         this.thresholdPixels = thresholdPixels;
         this.failFast = failFast;
+    }
+
+    /**
+     * TODO.
+     */
+    public void dump() {
+        Log.v(String.format("Field of view is %s degrees", fieldOfView));
+        Log.v(String.format("Threshold is %d pixels", thresholdPixels));
+        Log.v(String.format("Gamma is %s", gamma));
+        Log.v(String.format("The display's Luminance is %s candelas per meter squared", luminance));
     }
 
     /**
@@ -66,7 +141,7 @@ public class PerceptualDiff {
         int h = imgA.getHeight();
 
         if (w != imgB.getWidth() || h != imgB.getHeight()) {
-            Log.i("Image dimensions do not match");
+            Log.d("Image dimensions do not match");
             return false;
         }
 
@@ -75,7 +150,7 @@ public class PerceptualDiff {
         int[] bRGB = imgB.getRGB(0, 0, w, h, null, 0, w);
 
         if (Arrays.equals(aRGB, bRGB)) {
-            Log.i("Images are binary identical");
+            Log.d("Images are binary identical");
             return true;
         }
 
@@ -208,16 +283,16 @@ public class PerceptualDiff {
         String difference = String.format("%d pixels are different", pixelsFailed);
 
         if (pixelsFailed >= thresholdPixels) {
-            Log.i("Images are visibly different");
+            Log.d("Images are visibly different");
             if (failFast) {
                 difference = "At least " + difference;
             }
-            Log.i(difference);
+            Log.d(difference);
             return false;
         }
 
-        Log.i("Images are perceptually indistinguishable");
-        Log.i(difference);
+        Log.d("Images are perceptually indistinguishable");
+        Log.d(difference);
         return true;
     }
 

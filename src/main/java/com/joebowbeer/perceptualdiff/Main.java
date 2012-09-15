@@ -25,6 +25,7 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
+import com.joebowbeer.perceptualdiff.PerceptualDiff.Builder;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -37,9 +38,19 @@ import org.apache.commons.cli.ParseException;
  */
 public class Main {
 
-    private static String VERSION_STRING =
-            Main.class.getPackage().getSpecificationTitle() + " "
-            + Main.class.getPackage().getSpecificationVersion();
+    private static String VERSION_STRING = Main.class.getPackage().getSpecificationTitle()
+            + " " + Main.class.getPackage().getSpecificationVersion();
+
+    public static final String COLORFACTOR = "colorfactor";
+    public static final String FAILFAST = "failfast";
+    public static final String FOV = "fov";
+    public static final String GAMMA = "gamma";
+    public static final String LUMINANCE = "luminance";
+    public static final String LUMINANCEONLY = "luminanceonly";
+    public static final String DOWNSAMPLE = "downsample";
+    public static final String OUTPUT = "output";
+    public static final String THRESHOLD = "threshold";
+    public static final String VERBOSE = "verbose";
 
     /**
      * TODO.
@@ -51,72 +62,83 @@ public class Main {
         Options options = new Options();
         options.addOption(OptionBuilder
                 .withDescription("Turns on verbose mode")
-                .create("verbose"));
+                .create(VERBOSE));
         options.addOption(OptionBuilder
                 .withArgName("deg")
                 .hasArgs(1).withType(Number.class)
                 .withDescription("Field of view in degrees (0.1 to 89.9)")
-                .create("fov"));
+                .create(FOV));
         options.addOption(OptionBuilder
                 .withArgName("p")
                 .hasArgs(1).withType(Number.class)
                 .withDescription("#pixels p below which differences are ignored")
-                .create("threshold"));
+                .create(THRESHOLD));
         options.addOption(OptionBuilder
                 .withDescription("Fail immediately if threshold is reached")
-                .create("failfast"));
+                .create(FAILFAST));
         options.addOption(OptionBuilder
                 .withArgName("g")
                 .hasArgs(1).withType(Number.class)
                 .withDescription("Value to convert rgb into linear space (default 2.2)")
-                .create("gamma"));
+                .create(GAMMA));
         options.addOption(OptionBuilder
                 .withArgName("l").withType(Number.class)
                 .hasArgs(1)
                 .withDescription("White luminance (default 100.0 cdm^-2)")
-                .create("luminance"));
+                .create(LUMINANCE));
         options.addOption(OptionBuilder
                 .withDescription("Only consider luminance; ignore chroma (color) in comparison")
-                .create("luminanceonly"));
+                .create(LUMINANCEONLY));
         options.addOption(OptionBuilder
                 .withArgName("f")
                 .hasArgs(1).withType(Number.class)
                 .withDescription("How much of color to use, 0.0 to 1.0, 0.0 = ignore color.")
-                .create("colorfactor"));
+                .create(COLORFACTOR));
         options.addOption(OptionBuilder
                 .withArgName("n")
                 .hasArgs(1).withType(Number.class)
                 .withDescription("How many powers of two to down sample the image.")
-                .create("downsample"));
+                .create(DOWNSAMPLE));
         options.addOption(OptionBuilder
                 .withArgName("o")
                 .hasArgs(1)
                 .withDescription("Write difference to the file o.png")
-                .create("output"));
+                .create(OUTPUT));
 
         // parse the command line arguments
         try {
             CommandLine line = new GnuParser().parse(options, args);
 
-            double colorFactor = getDoubleValue(line, "colorfactor", 1.0);
-            int downSample = getIntValue(line, "downsample", 0);
-            boolean failFast = line.hasOption("failfast");
-            double fieldOfView = getDoubleValue(line, "fov", 45.0);
-            double gamma = getDoubleValue(line, "gamma", 2.2);
-            double luminance = getDoubleValue(line, "luminance", 100.0);
-            boolean luminanceOnly = line.hasOption("luminanceonly");
-            String output = line.getOptionValue("output", null);
-            int thresholdPixels = getIntValue(line, "threshold", 100);
-            boolean verbose = line.hasOption("verbose");
-
+            boolean verbose = line.hasOption(VERBOSE);
             if (verbose) {
                 Log.setLevel(Log.Level.VERBOSE);
-                Log.v(String.format("Field of view is %s degrees", fieldOfView));
-                Log.v(String.format("Threshold is %d pixels", thresholdPixels));
-                Log.v(String.format("Gamma is %s", gamma));
-                Log.v(String.format("The display's Luminance is %s candelas per meter squared",
-                        luminance));
             }
+
+            Builder builder = new Builder();
+            if (line.hasOption(COLORFACTOR)) {
+                builder.setColorFactor(getDoubleValue(line, COLORFACTOR));
+            }
+            if (line.hasOption(FAILFAST)) {
+                builder.setFailFast(true);
+            }
+            if (line.hasOption(FOV)) {
+                builder.setFieldOfView(getDoubleValue(line, FOV));
+            }
+            if (line.hasOption(GAMMA)) {
+                builder.setGamma(getDoubleValue(line, GAMMA));
+            }
+            if (line.hasOption(LUMINANCE)) {
+                builder.setLuminance(getDoubleValue(line, LUMINANCE));
+            }
+            if (line.hasOption(LUMINANCEONLY)) {
+                builder.setLuminanceOnly(true);
+            }
+            if (line.hasOption(THRESHOLD)) {
+                builder.setThresholdPixels(getIntValue(line, THRESHOLD));
+            }
+
+            int downSample = line.hasOption(DOWNSAMPLE) ? getIntValue(line, DOWNSAMPLE) : 0;
+            String output = line.getOptionValue(OUTPUT, null);
 
             String[] inputs = line.getArgs();
             if (inputs.length < 2) {
@@ -140,8 +162,11 @@ public class Main {
                 imgDiff = null;
             }
 
-            boolean passed = new PerceptualDiff(colorFactor, fieldOfView, gamma, luminance,
-                    luminanceOnly, thresholdPixels, failFast).compare(imgA, imgB, imgDiff);
+            PerceptualDiff pd = builder.build();
+            if (verbose) {
+                pd.dump();
+            }
+            boolean passed = pd.compare(imgA, imgB, imgDiff);
 
             // Always output image difference if requested.
             if (imgDiff != null) {
@@ -152,7 +177,7 @@ public class Main {
                 ImageIO.write(imgDiff, formatName, new File(output));
             }
 
-            Log.i(passed ? "PASS" : "FAIL");
+            System.out.println(passed ? "PASS" : "FAIL");
             System.exit(passed ? 0 : 1);
 
         } catch (ParseException ex) {
@@ -169,16 +194,12 @@ public class Main {
         }
     }
 
-    private static double getDoubleValue(CommandLine line, String opt, double defValue)
-            throws ParseException {
-        return line.hasOption(opt)
-                ? ((Number) line.getParsedOptionValue(opt)).doubleValue() : defValue;
+    private static double getDoubleValue(CommandLine line, String opt) throws ParseException {
+        return ((Number) line.getParsedOptionValue(opt)).doubleValue();
     }
 
-    private static int getIntValue(CommandLine line, String opt, int defValue)
-            throws ParseException {
-        return line.hasOption(opt)
-                ? ((Number) line.getParsedOptionValue(opt)).intValue() : defValue;
+    private static int getIntValue(CommandLine line, String opt) throws ParseException {
+        return ((Number) line.getParsedOptionValue(opt)).intValue();
     }
 
     private static BufferedImage resize(BufferedImage src, double scale) {
