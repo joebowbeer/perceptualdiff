@@ -34,7 +34,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 /**
- * TODO.
+ * Main class for invoking PerceptualDiff from the command line.
  */
 public class Main {
 
@@ -53,7 +53,7 @@ public class Main {
     public static final String VERBOSE = "verbose";
 
     /**
-     * TODO.
+     * Parses command line options and compares the selected image files.
      *
      * @param args command line options
      */

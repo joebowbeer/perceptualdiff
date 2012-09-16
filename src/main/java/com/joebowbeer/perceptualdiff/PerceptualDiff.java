@@ -20,16 +20,17 @@ package com.joebowbeer.perceptualdiff;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 
-import static java.lang.Math.PI;
-import static java.lang.Math.abs;
-import static java.lang.Math.exp;
-import static java.lang.Math.log10;
-import static java.lang.Math.pow;
-import static java.lang.Math.sqrt;
-import static java.lang.Math.tan;
+import org.apache.commons.math.util.FastMath;
+
+import static org.apache.commons.math.util.FastMath.PI;
+import static org.apache.commons.math.util.FastMath.abs;
+import static org.apache.commons.math.util.FastMath.exp;
+import static org.apache.commons.math.util.FastMath.log10;
+import static org.apache.commons.math.util.FastMath.sqrt;
+import static org.apache.commons.math.util.FastMath.tan;
 
 /**
- * TODO.
+ * Adapted from <a href="http://pdiff.sourceforge.net/">Perceptual Image Difference Utility</a>.
  */
 public class PerceptualDiff {
 
@@ -44,7 +45,9 @@ public class PerceptualDiff {
     private final boolean failFast;
 
     /**
-     * TODO.
+     * Builds parameter list for the PerceptualDiff {@linkplain
+     * PerceptualDiff#PerceptualDiff(double, int, boolean, double, double, boolean, double)
+     * constructor}.
      */
     public static class Builder {
         
@@ -98,15 +101,15 @@ public class PerceptualDiff {
     }
 
     /**
-     * TODO.
+     * Creates PerceptualDiff instance with specified parameters.
      * 
-     * @param fieldOfView
-     * @param thresholdPixels
-     * @param failFast
-     * @param gamma
-     * @param luminance
-     * @param luminanceOnly
-     * @param colorFactor 
+     * @param fieldOfView field of view in degrees
+     * @param thresholdPixels failure threshold
+     * @param failFast whether to fail immediately when threshold is reached
+     * @param gamma value to convert rgb into linear space
+     * @param luminance white luminance
+     * @param luminanceOnly whether to ignore chroma in comparison
+     * @param colorFactor how much of color to use
      */
     public PerceptualDiff(double fieldOfView, int thresholdPixels, boolean failFast, double gamma,
             double luminance, boolean luminanceOnly, double colorFactor) {
@@ -120,7 +123,7 @@ public class PerceptualDiff {
     }
 
     /**
-     * TODO.
+     * Prints some parameters to the log.
      */
     public void dump() {
         Log.v(String.format("Field of view is %s degrees", fieldOfView));
@@ -167,8 +170,8 @@ public class PerceptualDiff {
 
         Log.v("Converting RGB to XYZ and LAB");
 
-        convert(aRGB, la[0], aA, aB);
-        convert(bRGB, lb[0], bA, bB);
+        convert(aRGB, aA, aB, la[0]);
+        convert(bRGB, bA, bB, lb[0]);
 
         Log.v("Constructing Laplacian Pyramids");
 
@@ -297,14 +300,14 @@ public class PerceptualDiff {
     }
 
     /**
-     * TODO.
+     * Converts RGB to AB and luminance.
      * 
-     * @param rgb
-     * @param lum
-     * @param a
-     * @param b 
+     * @param rgb pixel values
+     * @param a A
+     * @param b B
+     * @param lum luminance
      */
-    private void convert(int[] rgb, float[] lum, float[] a, float[] b) {
+    private void convert(int[] rgb, float[] a, float[] b, float[] lum) {
         for (int index = 0, length = rgb.length; index < length; index++) {
             int color = rgb[index];
             double red = pow(((color >> 16) & 0xff) / 255.0, gamma);
@@ -334,11 +337,11 @@ public class PerceptualDiff {
                 }
             }
 
-            lum[index] = (float) (y * luminance);
-
             // L = 116.0 * f[1] - 16.0;
             a[index] = (float) (500.0 * (f[0] - f[1]));
             b[index] = (float) (200.0 * (f[1] - f[2]));
+
+            lum[index] = (float) (y * luminance);
         }
     }
 
@@ -435,5 +438,51 @@ public class PerceptualDiff {
         double a = pow(392.498 * contrast, 0.7);
         double b = pow(0.0153 * a, 4.0);
         return pow(1.0 + b, 0.25);
+    }
+
+    private static final boolean FAST_POW = true;
+
+    private static double pow(double a, double b) {
+        return FAST_POW ? fastpow(a, b): FastMath.pow(a, b);
+    }
+
+    /**
+     * Returns the first argument raised to the power of the second argument.
+     * 
+     * This approximate implementation from
+     * <a href="http://martin.ankerl.com/2012/01/25/optimized-approximative-pow-in-c-and-cpp/">
+     * martin.ankerl.com</a> is several times faster than {@link Math#pow(double, double) Math.pow}.
+     *
+     * <p>For an implementation with adjustable accuracy, see article by Harrison Ainsworth:
+     * <a href="http://www.hxa.name/articles/content/fast-pow-adjustable_hxa7241_2007.html">
+     * Fast pow() With Adjustable Accuracy</a>.
+     * 
+     * @param a the base
+     * @param b the exponent
+     * @return the value a<sup>b</sup>
+     */
+    private static double fastpow(double a, double b) {
+        // if b < 0, compute 1.0/pow(a, -b)
+        boolean negative = b < 0;
+        if (negative) {
+            b = -b;
+        }
+        // exponentiation by squaring
+        double r = 1.0;
+        int exp = (int) b;
+        double base = a;
+        while (exp != 0) {
+            if ((exp & 1) != 0) {
+                r *= base;
+            }
+            base *= base;
+            exp >>= 1;
+        }
+        // use the IEEE 754 trick for the fraction of the exponent
+        double bFraction = b - (int) b;
+        long tmp = Double.doubleToLongBits(a);
+        long tmp2 = (long) (bFraction * (tmp - 4606921280493453312L)) + 4606921280493453312L;
+        double result = r * Double.longBitsToDouble(tmp2);
+        return negative ? (1.0 / result) : result;
     }
 }
