@@ -20,14 +20,12 @@ package com.joebowbeer.perceptualdiff;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 
-import org.apache.commons.math.util.FastMath;
-
-import static org.apache.commons.math.util.FastMath.PI;
-import static org.apache.commons.math.util.FastMath.abs;
-import static org.apache.commons.math.util.FastMath.exp;
-import static org.apache.commons.math.util.FastMath.log10;
-import static org.apache.commons.math.util.FastMath.sqrt;
-import static org.apache.commons.math.util.FastMath.tan;
+import static java.lang.Math.PI;
+import static java.lang.Math.abs;
+import static java.lang.Math.exp;
+import static java.lang.Math.log10;
+import static java.lang.Math.sqrt;
+import static java.lang.Math.tan;
 
 /**
  * Adapted from <a href="http://pdiff.sourceforge.net/">Perceptual Image Difference Utility</a>.
@@ -443,7 +441,7 @@ public class PerceptualDiff {
     private static final boolean FAST_POW = true;
 
     private static double pow(double a, double b) {
-        return FAST_POW ? fastpow(a, b): FastMath.pow(a, b);
+        return FAST_POW ? fastpow(a, b): Math.pow(a, b);
     }
 
     /**

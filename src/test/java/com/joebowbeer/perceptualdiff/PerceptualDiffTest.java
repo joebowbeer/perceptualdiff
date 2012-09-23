@@ -31,12 +31,22 @@ public class PerceptualDiffTest extends TestCase {
     }
 
     /**
-     * There's something fishy about this test :-)
+     * Compares a set of image file pairs and checks that the PASS/FAIL status is as expected.
      */
     public void testCompare() throws IOException {
-        BufferedImage imgA = ImageIO.read(getClass().getClassLoader().getResourceAsStream("fish1.png"));
-        BufferedImage imgB = ImageIO.read(getClass().getClassLoader().getResourceAsStream("fish2.png"));
         PerceptualDiff pd = new PerceptualDiff.Builder().build();
-        assertFalse(pd.compare(imgA, imgB, null));
+        assertFalse(compare(pd, "fish2.png", "fish1.png"));
+        assertFalse(compare(pd, "Bug1102605_ref.tif", "Bug1102605.tif"));
+        assertTrue(compare(pd, "Bug1471457_ref.tif", "Bug1471457.tif"));
+        assertTrue(compare(pd, "cam_mb_ref.tif", "cam_mb.tif"));
+
+        PerceptualDiff pdlo = new PerceptualDiff.Builder().setLuminanceOnly(true).build();
+        assertTrue(compare(pdlo, "Aqsis_vase_ref.png", "Aqsis_vase.png"));
+    }
+
+    private boolean compare(PerceptualDiff pd, String resName1, String resName2) throws IOException {
+        BufferedImage imgA = ImageIO.read(getClass().getClassLoader().getResourceAsStream(resName1));
+        BufferedImage imgB = ImageIO.read(getClass().getClassLoader().getResourceAsStream(resName2));
+        return pd.compare(imgA, imgB, null);
     }
 }
