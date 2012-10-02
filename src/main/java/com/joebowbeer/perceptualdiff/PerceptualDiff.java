@@ -222,12 +222,12 @@ public class PerceptualDiff {
                 contrast[i] = numerator / denominator;
                 sumContrast += contrast[i];
             }
-            if (sumContrast < 1e-5) {
+            if (sumContrast < 1e-5f) {
                 sumContrast = 1e-5f;
             }
 
             double adapt = 0.5 * (la[adaptationLevel][index] + lb[adaptationLevel][index]);
-            if (adapt < 1e-5) {
+            if (adapt < 1e-5f) {
                 adapt = 1e-5f;
             }
             for (int i = 0; i < MAX_PYR_LEVELS - 2; i++) {
