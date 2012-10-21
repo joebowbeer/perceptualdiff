@@ -17,6 +17,7 @@
  */
 package com.joebowbeer.perceptualdiff;
 
+import static java.awt.Transparency.OPAQUE;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 
@@ -41,6 +42,8 @@ public class PerceptualDiff {
     private final boolean luminanceOnly;
     private final int thresholdPixels;
     private final boolean failFast;
+
+    private final double[] lut = new double[256];
 
     /**
      * Builds parameter list for the PerceptualDiff {@linkplain
@@ -118,6 +121,11 @@ public class PerceptualDiff {
         this.luminanceOnly = luminanceOnly;
         this.thresholdPixels = thresholdPixels;
         this.failFast = failFast;
+
+        // precompute color conversion table
+        for (int i = 0; i < lut.length; i++) {
+            lut[i] = Math.pow(i / 255.0, gamma);
+        }
     }
 
     /**
@@ -150,9 +158,17 @@ public class PerceptualDiff {
         int[] aRGB = imgA.getRGB(0, 0, w, h, null, 0, w);
         int[] bRGB = imgB.getRGB(0, 0, w, h, null, 0, w);
 
+        // accept if all pixels are identical
         if (Arrays.equals(aRGB, bRGB)) {
             Log.d("Images are binary identical");
             return true;
+        }
+
+        // reject if alpha values are not identical
+        if ((imgA.getTransparency() != OPAQUE || imgB.getTransparency() != OPAQUE)
+                && !identicalAlphas(aRGB, bRGB)) {
+            Log.d("Images have different alpha values");
+            return false;
         }
 
         int dim = aRGB.length;
@@ -168,8 +184,8 @@ public class PerceptualDiff {
 
         Log.v("Converting RGB to XYZ and LAB");
 
-        convert(aRGB, aA, aB, la[0]);
-        convert(bRGB, bA, bB, lb[0]);
+        convert(aRGB, aA, aB, la[0], 0, aRGB.length);
+        convert(bRGB, bA, bB, lb[0], 0, bRGB.length);
 
         Log.v("Constructing Laplacian Pyramids");
 
@@ -259,9 +275,7 @@ public class PerceptualDiff {
                 }
                 float da = aA[index] - bA[index];
                 float db = aB[index] - bB[index];
-                da = da * da;
-                db = db * db;
-                double deltaE = (da + db) * colorScale;
+                double deltaE = (da * da + db * db) * colorScale;
                 if (deltaE > factor) {
                     pass = false;
                 }
@@ -297,6 +311,15 @@ public class PerceptualDiff {
         return true;
     }
 
+    private static boolean identicalAlphas(int[] aRGB, int[] bRGB) {
+        for (int index = 0, length = aRGB.length; index < length; index++) {
+            if ((aRGB[index] & 0xff000000) != (bRGB[index] & 0xff000000)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * Converts RGB to AB and luminance.
      * 
@@ -304,13 +327,16 @@ public class PerceptualDiff {
      * @param a A
      * @param b B
      * @param lum luminance
+     * @param beginIndex beginning Index, inclusive
+     * @param endIndex ending index, exclusive
      */
-    private void convert(int[] rgb, float[] a, float[] b, float[] lum) {
-        for (int index = 0, length = rgb.length; index < length; index++) {
+    private void convert(int[] rgb, float[] a, float[] b, float[] lum,
+            int beginIndex, int endIndex) {
+        for (int index = beginIndex; index < endIndex; index++) {
             int color = rgb[index];
-            double red = pow(((color >> 16) & 0xff) / 255.0, gamma);
-            double grn = pow(((color >> 8) & 0xff) / 255.0, gamma);
-            double blu = pow((color & 0xff) / 255.0, gamma);
+            double red = lut[(color >> 16) & 0xff];
+            double grn = lut[(color >> 8) & 0xff];
+            double blu = lut[color & 0xff];
 
             /*
              * Convert from Adobe RGB (1998) with reference white D65 to XYZ.
@@ -335,7 +361,7 @@ public class PerceptualDiff {
                 }
             }
 
-            // L = 116.0 * f[1] - 16.0;
+            // L = 116.0 * f[1] - 16.0; // unused
             a[index] = (float) (500.0 * (f[0] - f[1]));
             b[index] = (float) (200.0 * (f[1] - f[2]));
 
@@ -356,36 +382,34 @@ public class PerceptualDiff {
      * Constructs the Laplacian pyramid by successively copying earlier levels and blurring them.
      */
     private static void construct(float[][] levels, int width, int height) {
+        float[] tmp = new float[height * width]; // transposed
         for (int i = 1, n = levels.length; i < n; i++) {
-            convolve(levels[i], levels[i - 1], width, height);
+            // apply filter kernel horizontally and then vertically
+            convolveAndTranspose(levels[i - 1], tmp, width, height);
+            convolveAndTranspose(tmp, levels[i], height, width);
         }
     }
 
     /**
-     * Convolves image b with the filter kernel and stores it in a.
+     * Convolves image src with 1D filter kernel and stores it transposed in dst.
+     * <p>Adapted from
+     * <a href="http://www.jhlabs.com/ip/GaussianFilter.java">Jerry Huxtable's Gaussian Filter</a>
      */
-    private static void convolve(float[] a, float[] b, int width, int height) {
-        for (int index = 0, y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++, index++) {
+    private static void convolveAndTranspose(float[] src, float[] dst, int width, int height) {
+        for (int offset = 0, y = 0; y < height; y++, offset += width) {
+            for (int index = y, x = 0; x < width; x++, index += height) {
+                float f = 0f;
                 for (int i = -2; i <= 2; i++) {
-                    for (int j = -2; j <= 2; j++) {
-                        int nx = x + i;
-                        int ny = y + j;
-                        if (nx < 0) {
-                            nx = -nx;
-                        }
-                        if (ny < 0) {
-                            ny = -ny;
-                        }
-                        if (nx >= width) {
-                            nx = 2 * width - nx - 1;
-                        }
-                        if (ny >= height) {
-                            ny = 2 * height - ny - 1;
-                        }
-                        a[index] += kernel[i + 2] * kernel[j + 2] * b[nx + ny * width];
+                    int ix = x + i;
+                    // wrap edges
+                    if (ix < 0) {
+                        ix = -ix;
+                    } else if (ix >= width) {
+                        ix = (width - ix) + width - 1;
                     }
+                    f += kernel[i + 2] * src[offset + ix];
                 }
+                dst[index] = f;
             }
         }
     }
