@@ -2,6 +2,7 @@ package com.joebowbeer.perceptualdiff;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.concurrent.ForkJoinPool;
 
 import javax.imageio.ImageIO;
 
@@ -13,6 +14,8 @@ import junit.framework.TestSuite;
  * Unit test for PerceptualDiff.
  */
 public class PerceptualDiffTest extends TestCase {
+
+    private static final ForkJoinPool pool = new ForkJoinPool();
 
     /**
      * Create the test case
@@ -47,6 +50,6 @@ public class PerceptualDiffTest extends TestCase {
     private boolean compare(PerceptualDiff pd, String resName1, String resName2) throws IOException {
         BufferedImage imgA = ImageIO.read(getClass().getClassLoader().getResourceAsStream(resName1));
         BufferedImage imgB = ImageIO.read(getClass().getClassLoader().getResourceAsStream(resName2));
-        return pd.compare(imgA, imgB, null);
+        return pd.compare(pool, imgA, imgB, null);
     }
 }

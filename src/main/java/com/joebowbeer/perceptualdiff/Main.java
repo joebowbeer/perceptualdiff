@@ -22,6 +22,7 @@ import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ForkJoinPool;
 
 import javax.imageio.ImageIO;
 
@@ -51,6 +52,8 @@ public class Main {
     public static final String OUTPUT = "output";
     public static final String THRESHOLD = "threshold";
     public static final String VERBOSE = "verbose";
+
+    private static final ForkJoinPool pool = new ForkJoinPool();
 
     /**
      * Parses command line options and compares the selected image files.
@@ -156,22 +159,17 @@ public class Main {
                 imgB = resize(imgB, scale);
             }
 
-            BufferedImage imgDiff;
-            if (output != null) {
-                imgDiff = new BufferedImage(imgA.getWidth(), imgA.getHeight(),
-                        BufferedImage.TYPE_INT_ARGB);
-            } else {
-                imgDiff = null;
-            }
+            BufferedImage imgDiff = (output != null) ? new BufferedImage(
+                    imgA.getWidth(), imgA.getHeight(), BufferedImage.TYPE_INT_ARGB) : null;
 
             PerceptualDiff pd = builder.build();
             if (verbose) {
                 pd.dump();
             }
-            boolean passed = pd.compare(imgA, imgB, imgDiff);
+            boolean passed = pd.compare(pool, imgA, imgB, imgDiff);
 
             // Always output image difference if requested.
-            if (imgDiff != null) {
+            if (output != null) {
                 Log.i("Writing difference image to " + output);
                 int extIndex = output.lastIndexOf('.');
                 String formatName = (extIndex != -1)
