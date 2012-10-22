@@ -415,7 +415,7 @@ public class PerceptualDiff {
         private final double[] cpd;
         private final double[] freq;
 
-        private static final int COLOR_PASS = 0xff000000;
+        private static final int COLOR_PASS = 0xff0000ff;
         private static final int COLOR_FAIL = 0xffff0000;
 
         protected Comparison(
