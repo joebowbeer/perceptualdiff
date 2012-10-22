@@ -442,11 +442,11 @@ public class PerceptualDiff {
 
         private class CompareTask extends RecursiveTask<Boolean> {
 
-            protected final int beginIndex;
-            protected final int endIndex;
+            private final int beginIndex;
+            private final int endIndex;
             private final CompareTask next; // keeps track of forked tasks
 
-            private CompareTask(int beginIndex, int endIndex, CompareTask next) {
+            protected CompareTask(int beginIndex, int endIndex, CompareTask next) {
                 this.beginIndex = beginIndex;
                 this.endIndex = endIndex;
                 this.next = next;
@@ -485,7 +485,7 @@ public class PerceptualDiff {
              *
              * @param begin beginning index, inclusive
              * @param end ending index, exclusive
-             * @return true if all pixels were compared
+             * @return true if all pixels in specified range were compared
              */
             protected boolean atLeaf(int begin, int end) {
 
