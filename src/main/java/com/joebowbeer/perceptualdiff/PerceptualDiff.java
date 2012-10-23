@@ -245,7 +245,7 @@ public class PerceptualDiff {
         Comparison comparison = new Comparison(aA, aB, la, bA, bB, lb,
                 pixelsFailed, pixDiff, adaptationLevel, cpd, freq);
 
-        boolean completed = pool.invoke(comparison.newTask(0, dim, null));
+        boolean completed = pool.invoke(comparison.newTask(0, dim));
         assert completed | failFast;
 
         if (imgDiff != null) {
@@ -369,7 +369,7 @@ public class PerceptualDiff {
     private static void convolveAndTranspose(float[] src, float[] dst, int width, int height) {
         for (int offset = 0, y = 0; y < height; y++, offset += width) {
             for (int index = y, x = 0; x < width; x++, index += height) {
-                float f = 0f;
+                float f = 0;
                 for (int i = -2; i <= 2; i++) {
                     int ix = x + i;
                     // wrap edges
@@ -436,8 +436,8 @@ public class PerceptualDiff {
             this.freq = freq;
         }
 
-        public CompareTask newTask(int beginIndex, int endIndex, CompareTask next) {
-            return new CompareTask(beginIndex, endIndex, next);
+        public CompareTask newTask(int beginIndex, int endIndex) {
+            return new CompareTask(beginIndex, endIndex, null);
         }
 
         private class CompareTask extends RecursiveTask<Boolean> {
