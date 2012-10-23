@@ -242,10 +242,8 @@ public class PerceptualDiff {
 
         int[] pixDiff = (imgDiff != null) ? new int[dim] : null;
 
-        Comparison comparison = new Comparison(aA, aB, la, bA, bB, lb,
-                pixelsFailed, pixDiff, adaptationLevel, cpd, freq);
-
-        boolean completed = pool.invoke(comparison.newTask(0, dim));
+        boolean completed = pool.invoke(newCompareTask(aA, aB, la, bA, bB, lb,
+                pixelsFailed, pixDiff, adaptationLevel, cpd, freq));
         assert completed | failFast;
 
         if (imgDiff != null) {
@@ -365,8 +363,10 @@ public class PerceptualDiff {
     }
 
     /**
-     * Convolves image src with 1D filter kernel and stores it transposed in dst.
-     * <p>Adapted from
+     * Convolves image <code>src</code> with 1D filter kernel and stores it transposed in
+     * <code>dst</code>.
+     * <p>
+     * Adapted from
      * <a href="http://www.jhlabs.com/ip/GaussianFilter.java">Jerry Huxtable's Gaussian Filter</a>
      */
     private static void convolveAndTranspose(float[] src, float[] dst, int width, int height) {
@@ -392,6 +392,19 @@ public class PerceptualDiff {
      * Filter kernel for Laplacian convolution.
      */
     private static final float[] kernel = {0.05f, 0.25f, 0.4f, 0.25f, 0.05f};
+
+    /**
+     * Returns root task for recursive comparison computation.
+     */
+    private Comparison.CompareTask newCompareTask(
+            float[] aA, float[] aB, float[][] la,
+            float[] bA, float[] bB, float[][] lb,
+            AtomicInteger pixelsFailed, int[] pixDiff,
+            int adaptationLevel, double[] cpd, double[] freq) {
+        Comparison comparison = new Comparison(aA, aB, la, bA, bB, lb,
+                pixelsFailed, pixDiff, adaptationLevel, cpd, freq);
+        return comparison.new CompareTask(0, aA.length, null);
+    }
 
     /**
      * ForkJoin idioms adapted from {@link java.util.concurrent.RecursiveAction sumOfSquares}
@@ -439,10 +452,6 @@ public class PerceptualDiff {
             this.freq = freq;
         }
 
-        public CompareTask newTask(int beginIndex, int endIndex) {
-            return new CompareTask(beginIndex, endIndex, null);
-        }
-
         private class CompareTask extends RecursiveTask<Boolean> {
 
             private final int beginIndex;
@@ -488,7 +497,7 @@ public class PerceptualDiff {
              *
              * @param begin beginning index, inclusive
              * @param end ending index, exclusive
-             * @return true if all pixels in specified range were compared
+             * @return <code>true</code> if all pixels in specified range were compared
              */
             protected boolean atLeaf(int begin, int end) {
 
