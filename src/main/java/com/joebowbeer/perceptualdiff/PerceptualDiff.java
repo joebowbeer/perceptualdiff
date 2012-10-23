@@ -17,7 +17,6 @@
  */
 package com.joebowbeer.perceptualdiff;
 
-import static java.awt.Transparency.OPAQUE;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
@@ -25,6 +24,7 @@ import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.awt.Transparency.OPAQUE;
 import static java.lang.Math.PI;
 import static java.lang.Math.abs;
 import static java.lang.Math.exp;
