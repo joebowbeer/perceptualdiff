@@ -242,8 +242,8 @@ public class PerceptualDiff {
 
         int[] pixDiff = (imgDiff != null) ? new int[dim] : null;
 
-        boolean completed = pool.invoke(newCompareTask(aA, aB, la, bA, bB, lb,
-                pixelsFailed, pixDiff, adaptationLevel, cpd, freq));
+        boolean completed = pool.invoke(new Comparison(aA, aB, la, bA, bB, lb,
+                pixelsFailed, pixDiff, adaptationLevel, cpd, freq).rootTask());
         assert completed | failFast;
 
         if (imgDiff != null) {
@@ -394,23 +394,10 @@ public class PerceptualDiff {
     private static final float[] kernel = {0.05f, 0.25f, 0.4f, 0.25f, 0.05f};
 
     /**
-     * Returns root task for recursive comparison computation.
-     */
-    private Comparison.CompareTask newCompareTask(
-            float[] aA, float[] aB, float[][] la,
-            float[] bA, float[] bB, float[][] lb,
-            AtomicInteger pixelsFailed, int[] pixDiff,
-            int adaptationLevel, double[] cpd, double[] freq) {
-        Comparison comparison = new Comparison(aA, aB, la, bA, bB, lb,
-                pixelsFailed, pixDiff, adaptationLevel, cpd, freq);
-        return comparison.new CompareTask(0, aA.length, null);
-    }
-
-    /**
      * ForkJoin idioms adapted from {@link java.util.concurrent.RecursiveAction sumOfSquares}
      * sample.
      */
-    private class Comparison {
+    protected class Comparison {
 
         private static final int LEAF_SIZE = 512;
 
@@ -452,7 +439,14 @@ public class PerceptualDiff {
             this.freq = freq;
         }
 
-        private class CompareTask extends RecursiveTask<Boolean> {
+        /**
+         * Returns root task for recursive comparison.
+         */
+        protected CompareTask rootTask() {
+            return new CompareTask(0, aA.length, null);
+        }
+
+        protected class CompareTask extends RecursiveTask<Boolean> {
 
             private final int beginIndex;
             private final int endIndex;
