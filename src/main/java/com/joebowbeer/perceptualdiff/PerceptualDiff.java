@@ -216,8 +216,8 @@ public class PerceptualDiff {
 
         Log.v("Converting RGB and constructing Laplacian Pyramids");
 
-        ForkJoinTask<?> taskA = pool.submit(new ConvertTask(aRGB, aA, aB, la, w, h));
-        ForkJoinTask<?> taskB = pool.submit(new ConvertTask(bRGB, bA, bB, lb, w, h));
+        ForkJoinTask<?> taskA = pool.submit(new PyramidTask(aRGB, aA, aB, la, w, h));
+        ForkJoinTask<?> taskB = pool.submit(new PyramidTask(bRGB, bA, bB, lb, w, h));
 
         double pixelsPerDegree = w / numOneDegreePixels;
 
@@ -268,7 +268,10 @@ public class PerceptualDiff {
         return true;
     }
 
-    private class ConvertTask implements Runnable {
+    /**
+     * Converts color values and constructs Laplacian pyramids.
+     */
+    private class PyramidTask implements Runnable {
 
         private final int[] rgb;
         private final float[] a;
@@ -277,7 +280,7 @@ public class PerceptualDiff {
         private final int width;
         private final int height;
 
-        protected ConvertTask(int[] rgb, float[] a, float[] b, float[][] levels,
+        protected PyramidTask(int[] rgb, float[] a, float[] b, float[][] levels,
                 int width, int height) {
             this.rgb = rgb;
             this.a = a;
@@ -300,7 +303,7 @@ public class PerceptualDiff {
      * @param rgb pixel values
      * @param a A
      * @param b B
-     * @param lum luminance
+     * @param lum Y * luminance
      */
     protected void convert(int[] rgb, float[] a, float[] b, float[] lum) {
         for (int index = 0; index < rgb.length; index++) {
