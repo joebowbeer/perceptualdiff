@@ -17,13 +17,6 @@
  */
 package com.joebowbeer.perceptualdiff;
 
-import java.awt.image.BufferedImage;
-import java.util.Arrays;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinTask;
-import java.util.concurrent.RecursiveTask;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static java.awt.Transparency.OPAQUE;
 import static java.lang.Math.PI;
 import static java.lang.Math.abs;
@@ -32,12 +25,19 @@ import static java.lang.Math.log10;
 import static java.lang.Math.sqrt;
 import static java.lang.Math.tan;
 
+import java.awt.image.BufferedImage;
+import java.util.Arrays;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.RecursiveTask;
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * Adapted from <a href="http://pdiff.sourceforge.net/">Perceptual Image Difference Utility</a>.
  */
 public class PerceptualDiff {
 
-  private static int MAX_PYR_LEVELS = 8;
+  private static final int MAX_PYR_LEVELS = 8;
 
   private final double colorFactor;
   private final double fieldOfView;
