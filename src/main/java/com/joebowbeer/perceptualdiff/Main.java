@@ -56,57 +56,10 @@ public class Main {
    *
    * @param args command line options
    */
-  @SuppressWarnings("static-access")
   public static void main(String[] args) throws IOException {
-    // create command line options
-    Options options = new Options();
-    options.addOption(OptionBuilder
-        .withDescription("Turns on verbose mode")
-        .create(VERBOSE));
-    options.addOption(OptionBuilder
-        .withArgName("deg")
-        .hasArgs(1).withType(Number.class)
-        .withDescription("Field of view in degrees (0.1 to 89.9)")
-        .create(FOV));
-    options.addOption(OptionBuilder
-        .withArgName("p")
-        .hasArgs(1).withType(Number.class)
-        .withDescription("#pixels p below which differences are ignored")
-        .create(THRESHOLD));
-    options.addOption(OptionBuilder
-        .withDescription("Fail immediately if threshold is reached")
-        .create(FAILFAST));
-    options.addOption(OptionBuilder
-        .withArgName("g")
-        .hasArgs(1).withType(Number.class)
-        .withDescription("Value to convert rgb into linear space (default 2.2)")
-        .create(GAMMA));
-    options.addOption(OptionBuilder
-        .withArgName("l").withType(Number.class)
-        .hasArgs(1)
-        .withDescription("White luminance (default 100.0 cdm^-2)")
-        .create(LUMINANCE));
-    options.addOption(OptionBuilder
-        .withDescription("Only consider luminance; ignore chroma (color) in comparison")
-        .create(LUMINANCEONLY));
-    options.addOption(OptionBuilder
-        .withArgName("f")
-        .hasArgs(1).withType(Number.class)
-        .withDescription("How much of color to use, 0.0 to 1.0, 0.0 = ignore color.")
-        .create(COLORFACTOR));
-    options.addOption(OptionBuilder
-        .withArgName("n")
-        .hasArgs(1).withType(Number.class)
-        .withDescription("How many powers of two to down sample the image.")
-        .create(DOWNSAMPLE));
-    options.addOption(OptionBuilder
-        .withArgName("o.png")
-        .hasArgs(1)
-        .withDescription("Write difference to the file o.png")
-        .create(OUTPUT));
-
-    // parse the command line arguments
+    Options options = createCommandLineOptions();
     try {
+      // Parse the command line.
       CommandLine line = new GnuParser().parse(options, args);
 
       boolean verbose = line.hasOption(VERBOSE);
@@ -172,7 +125,7 @@ public class Main {
         int extIndex = output.lastIndexOf('.');
         String formatName = (extIndex != -1)
             ? output.substring(extIndex + 1)
-            : "png"; // TODO?
+            : "png"; // TODO: Reconsider png as default?
         ImageIO.write(imgDiff, formatName, new File(output));
       }
 
@@ -190,6 +143,56 @@ public class Main {
           "\nNote: Input or Output files can be in any format that ImageIO supports.");
       System.exit(2);
     }
+  }
+
+  @SuppressWarnings("static-access")
+  private static Options createCommandLineOptions() {
+    Options options = new Options();
+    options.addOption(OptionBuilder
+        .withDescription("Turns on verbose mode")
+        .create(VERBOSE));
+    options.addOption(OptionBuilder
+        .withArgName("deg")
+        .hasArgs(1).withType(Number.class)
+        .withDescription("Field of view in degrees (0.1 to 89.9)")
+        .create(FOV));
+    options.addOption(OptionBuilder
+        .withArgName("p")
+        .hasArgs(1).withType(Number.class)
+        .withDescription("#pixels p below which differences are ignored")
+        .create(THRESHOLD));
+    options.addOption(OptionBuilder
+        .withDescription("Fail immediately if threshold is reached")
+        .create(FAILFAST));
+    options.addOption(OptionBuilder
+        .withArgName("g")
+        .hasArgs(1).withType(Number.class)
+        .withDescription("Value to convert rgb into linear space (default 2.2)")
+        .create(GAMMA));
+    options.addOption(OptionBuilder
+        .withArgName("l").withType(Number.class)
+        .hasArgs(1)
+        .withDescription("White luminance (default 100.0 cdm^-2)")
+        .create(LUMINANCE));
+    options.addOption(OptionBuilder
+        .withDescription("Only consider luminance; ignore chroma (color) in comparison")
+        .create(LUMINANCEONLY));
+    options.addOption(OptionBuilder
+        .withArgName("f")
+        .hasArgs(1).withType(Number.class)
+        .withDescription("How much of color to use, 0.0 to 1.0, 0.0 = ignore color.")
+        .create(COLORFACTOR));
+    options.addOption(OptionBuilder
+        .withArgName("n")
+        .hasArgs(1).withType(Number.class)
+        .withDescription("How many powers of two to down sample the image.")
+        .create(DOWNSAMPLE));
+    options.addOption(OptionBuilder
+        .withArgName("o.png")
+        .hasArgs(1)
+        .withDescription("Write difference to the file o.png")
+        .create(OUTPUT));
+    return options;
   }
 
   private static double getDoubleValue(CommandLine line, String opt) throws ParseException {

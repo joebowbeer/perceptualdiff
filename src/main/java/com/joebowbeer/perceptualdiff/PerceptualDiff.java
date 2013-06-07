@@ -121,7 +121,8 @@ public class PerceptualDiff {
    * @param luminanceOnly whether to ignore chroma in comparison
    * @param colorFactor how much of color to use
    */
-  public PerceptualDiff(double fieldOfView, int thresholdPixels, boolean failFast, double gamma,
+  public PerceptualDiff(
+      double fieldOfView, int thresholdPixels, boolean failFast, double gamma,
       double luminance, boolean luminanceOnly, double colorFactor) {
     this.colorFactor = colorFactor;
     this.fieldOfView = fieldOfView;
