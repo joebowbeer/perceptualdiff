@@ -56,6 +56,7 @@ public class Main {
    *
    * @param args command line options
    */
+  @SuppressWarnings("static-access")
   public static void main(String[] args) throws IOException {
     // create command line options
     Options options = new Options();
